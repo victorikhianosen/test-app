@@ -3,7 +3,6 @@
 ############################################
 FROM unit:1.34.1-php8.3 AS build
 
-# Neutral build environment
 ARG APP_ENV=build
 ENV APP_ENV=build
 ENV APP_DEBUG=false
@@ -21,17 +20,19 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /var/www/html
 
-COPY composer.json composer.lock ./
+# ⬇⬇⬇ COPY APP FIRST (THIS FIXES THE ERROR)
+COPY . .
+
+# Ensure Laravel dirs exist
+RUN mkdir -p storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
+# Now composer can see artisan
 RUN composer install \
     --prefer-dist \
     --optimize-autoloader \
     --no-interaction \
     --no-progress
-
-COPY . .
-
-RUN mkdir -p storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
 
 ############################################
 # STAGE 2 — RUNTIME
@@ -52,5 +53,4 @@ COPY --from=build /var/www/html /var/www/html
 COPY unit.json /docker-entrypoint.d/unit.json
 
 EXPOSE 8000
-
 CMD ["unitd", "--no-daemon"]
